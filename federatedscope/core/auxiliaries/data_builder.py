@@ -1,3 +1,4 @@
+import math
 import os
 import pickle
 import logging
@@ -669,37 +670,10 @@ def get_data(config):
     else:
         raise ValueError('Data {} not found.'.format(config.data.type))
 
-    if 'backdoor' in config.attack.attack_method and 'edge' in \
-            config.attack.trigger_type:
-        import os
-        import torch
-        from federatedscope.attack.auxiliary import\
-            create_ardis_poisoned_dataset, create_ardis_test_dataset
-        if not os.path.exists(config.attack.edge_path):
-            os.makedirs(config.attack.edge_path)
-            poisoned_edgeset = create_ardis_poisoned_dataset(
-                data_path=config.attack.edge_path)
+    process_data_attack_case(config, data, modified_config)
 
-            ardis_test_dataset = create_ardis_test_dataset(
-                config.attack.edge_path)
-
-            logger.info("Writing poison_data to: {}".format(
-                config.attack.edge_path))
-
-            with open(config.attack.edge_path + "poisoned_edgeset_training",
-                      "wb") as saved_data_file:
-                torch.save(poisoned_edgeset, saved_data_file)
-
-            with open(config.attack.edge_path+"ardis_test_dataset.pt", "wb") \
-                    as ardis_data_file:
-                torch.save(ardis_test_dataset, ardis_data_file)
-            logger.warning('please notice: downloading the poisoned dataset \
-                on cifar-10 from \
-                    https://github.com/ksreenivasan/OOD_Federated_Learning')
-
-    if 'backdoor' in config.attack.attack_method:
-        from federatedscope.attack.auxiliary import poisoning
-        poisoning(data, modified_config)
+    # get the statistics about the used data
+    do_data_statistics(config, data)
 
     setup_seed(config.seed)
 
@@ -719,7 +693,157 @@ def get_data(config):
             data_idx = config.distribute.data_idx
         return data[data_idx], config
 
-    setup_seed(config.seed)
+
+def do_data_statistics(config, data):
+    data_num_all_client = defaultdict(list)
+    logger.info(
+        f"For data={config.data.type} with subsample={config.data.subsample},"
+        f" the client_num is {len(data)}")
+    for client_id, ds_ci in data.items():
+        if client_id == 0:
+            # skip the data holds on server
+            continue
+        if isinstance(ds_ci, dict):
+            for split_name, ds in ds_ci.items():
+                try:
+                    import torch
+                    from federatedscope.mf.dataloader import MFDataLoader
+                    if isinstance(
+                            ds, (torch.utils.data.Dataset, list)) or \
+                            issubclass(type(ds), torch.utils.data.Dataset):
+                        data_num_all_client[split_name].append(len(ds))
+                    elif isinstance(
+                            ds, (torch.utils.data.DataLoader, list)) or \
+                            issubclass(type(ds), torch.utils.data.DataLoader):
+                        data_num_all_client[split_name].append(len(ds.dataset))
+                        if config.data.labelwise_boxplot and \
+                                "cifar" in config.data.type.lower():
+                            from collections import Counter
+                            all_labels = [
+                                ds.dataset[i][1]
+                                for i in range(len(ds.dataset))
+                            ]
+                            label_wise_cnt = Counter(all_labels)
+                            for label, cnt in label_wise_cnt.items():
+                                data_num_all_client[label].append(cnt)
+
+                    elif issubclass(type(ds), MFDataLoader):
+                        data_num_all_client[split_name].append(ds.n_rating)
+                except:
+                    if isinstance(ds, list):
+                        data_num_all_client[split_name].append(len(ds))
+        if config.data.type in ["cora", "citeseer", "pubmed"]:
+            # node-wise classification
+            from torch_geometric.data.data import Data
+            import torch
+            if isinstance(ds_ci, Data):
+                for split_name in ["train_mask", "val_mask", "test_mask"]:
+                    num_nodes = sum(ds_ci[split_name]).item()
+                    data_num_all_client[split_name.split("_")[0]].append(
+                        num_nodes)
+    if config.data.plot_boxplot:
+        plot_data_statistics(config, data_num_all_client)
+    from scipy import stats
+    all_split_merged_num = []
+    for k, v in data_num_all_client.items():
+        if all_split_merged_num == []:
+            all_split_merged_num.extend(v)
+        else:
+            all_split_merged_num = [
+                all_split_merged_num[i] + v[i] for i in range(len(v))
+            ]
+    data_num_all_client["all"] = all_split_merged_num
+    for k, v in data_num_all_client.items():
+        if len(v) == 0:
+            logger.warning(
+                "The data distribution statistics info are nor correctly "
+                "logged, maybe you used a data type we haven't support")
+        else:
+            stats_res = stats.describe(v)
+            if stats_res.minmax[1] == 0:
+                logger.warning(
+                    f"For data split {k}, the max sample num in the client "
+                    f"is 0. Please check whether "
+                    f"this is as you would like it to be")
+            logger.info(
+                f"For data split {k}, the stats_res over all client is "
+                f"{stats_res}, the meadian is {sorted(v)[len(v) // 2]}, "
+                f"std is {math.sqrt(stats_res.variance)}")
+
+
+def plot_data_statistics(config, data_num_all_client):
+    index = []
+    data_num_list = []
+    for key, val in data_num_all_client.items():
+        if config.data.labelwise_boxplot and key in ["train", "test", "val"]:
+            continue
+        index.append(key)
+        data_num_list.append(val)
+    if index[1] == "test" and index[2] == "val":
+        index[1], index[2] = index[2], index[1]
+        data_num_list[1], data_num_list[2] = data_num_list[2], data_num_list[1]
+    import matplotlib.pyplot as plt
+    import matplotlib.pylab as pylab
+    plt.clf()
+    label_size = 18.5
+    ticks_size = 17
+    title_size = 22.5
+    legend_size = 17
+    params = {
+        'legend.fontsize': legend_size,
+        'axes.labelsize': label_size,
+        'axes.titlesize': title_size,
+        'xtick.labelsize': ticks_size,
+        'ytick.labelsize': ticks_size
+    }
+    if config.data.labelwise_boxplot:
+        index_order = np.argsort(np.array(index))
+        index = [index[i] for i in index_order]
+        data_num_list = [data_num_list[i] for i in index_order]
+    pylab.rcParams.update(params)
+    ax = plt.subplot()
+    ax.violinplot(data_num_list)
+    ax.set_xticks(range(1, len(index) + 1))
+    ax.set_xticklabels(index)
+    ax.set_ylabel("#Samples Per Client")
+    fig_name = f"{config.outdir}/visual_{config.data.type}.pdf"
+    if config.data.labelwise_boxplot:
+        fig_name = f"{config.outdir}/visual_{config.data.type}_label.pdf"
+    plt.savefig(fig_name, bbox_inches='tight', pad_inches=0)
+    plt.show()
+
+
+def process_data_attack_case(config, data, modified_config):
+    if 'backdoor' in config.attack.attack_method and 'edge' in \
+            config.attack.trigger_type:
+        import os
+        import torch
+        from federatedscope.attack.auxiliary import \
+            create_ardis_poisoned_dataset, create_ardis_test_dataset
+        if not os.path.exists(config.attack.edge_path):
+            os.makedirs(config.attack.edge_path)
+            poisoned_edgeset = create_ardis_poisoned_dataset(
+                data_path=config.attack.edge_path)
+
+            ardis_test_dataset = create_ardis_test_dataset(
+                config.attack.edge_path)
+
+            logger.info("Writing poison_data to: {}".format(
+                config.attack.edge_path))
+
+            with open(config.attack.edge_path + "poisoned_edgeset_training",
+                      "wb") as saved_data_file:
+                torch.save(poisoned_edgeset, saved_data_file)
+
+            with open(config.attack.edge_path + "ardis_test_dataset.pt",
+                      "wb") as ardis_data_file:
+                torch.save(ardis_test_dataset, ardis_data_file)
+            logger.warning('please notice: downloading the poisoned dataset \
+                on cifar-10 from \
+                    https://github.com/ksreenivasan/OOD_Federated_Learning')
+    if 'backdoor' in config.attack.attack_method:
+        from federatedscope.attack.auxiliary import poisoning
+        poisoning(data, modified_config)
 
 
 def merge_data(all_data, merged_max_data_id, specified_dataset_name=None):

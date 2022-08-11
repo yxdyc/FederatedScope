@@ -40,7 +40,8 @@ class LEAF_TWITTER(LEAF):
                  val_frac=0.0,
                  seed=123,
                  transform=None,
-                 target_transform=None):
+                 target_transform=None,
+                 min_size_per_user=0):
         self.root = root
         self.name = name
         self.s_frac = s_frac
@@ -48,6 +49,7 @@ class LEAF_TWITTER(LEAF):
         self.val_frac = val_frac
         self.seed = seed
         self.max_len = max_len
+        self.min_size_per_user = min_size_per_user
         if name != 'twitter':
             raise ValueError('`name` should be `twitter`.')
         else:
@@ -170,10 +172,18 @@ class LEAF_TWITTER(LEAF):
             user_list = list(raw_data['user_data'].keys())
             n_tasks = math.ceil(len(user_list) * self.s_frac)
             random.shuffle(user_list)
-            user_list = user_list[:n_tasks]
+            print(f"Will generate {n_tasks} clients, with min_size_per_user="
+                  f"{self.min_size_per_user}")
+            # user_list = user_list[:n_tasks]
             for user in tqdm(user_list):
                 data, targets = raw_data['user_data'][user]['x'], raw_data[
                     'user_data'][user]['y']
+
+                if idx >= n_tasks:
+                    break
+
+                if len(data) < self.min_size_per_user:
+                    continue
 
                 # Tokenize
                 data, targets = self.tokenizer(data, targets)
