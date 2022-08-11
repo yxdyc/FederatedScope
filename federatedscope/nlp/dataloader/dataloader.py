@@ -32,13 +32,15 @@ def load_nlp_dataset(config=None):
                            seed=config.seed,
                            **transforms_funcs)
     if name == 'twitter':
-        dataset = LEAF_TWITTER(root=path,
-                               name='twitter',
-                               s_frac=config.data.subsample,
-                               tr_frac=splits[0],
-                               val_frac=splits[1],
-                               seed=config.seed,
-                               **transforms_funcs)
+        dataset = LEAF_TWITTER(
+            root=path,
+            name='twitter',
+            s_frac=config.data.subsample,
+            tr_frac=splits[0],
+            val_frac=splits[1],
+            seed=config.seed,
+            min_size_per_user=config.data.min_size_per_client,
+            **transforms_funcs)
     elif name == 'synthetic':
         dataset = LEAF_SYNTHETIC(root=path)
     else:

@@ -26,7 +26,10 @@ def extend_data_cfg(cfg):
     cfg.data.shuffle = True
     cfg.data.server_holds_all = False  # whether the server (workers with
     # idx 0) holds all data, useful in global training/evaluation case
-    cfg.data.subsample = 1.0
+    cfg.data.subsample = 1.0  # if not 1.0, will do subsampling
+    cfg.data.min_size_per_client = 0  # if not zero, will try to filter out
+    # the clients whose data size smaller than the specified value in data
+    # sub-sampling.
     cfg.data.splits = [0.8, 0.1, 0.1]  # Train, valid, test splits
     cfg.data.consistent_label_distribution = False  # If True, the label
     # distributions of train/val/test set over clients will be kept
@@ -37,6 +40,9 @@ def extend_data_cfg(cfg):
     cfg.data.graphsaint = CN()
     cfg.data.graphsaint.walk_length = 2
     cfg.data.graphsaint.num_steps = 30
+
+    cfg.data.plot_boxplot = False
+    cfg.data.labelwise_boxplot = False
 
     # quadratic
     cfg.data.quadratic = CN()

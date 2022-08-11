@@ -139,12 +139,42 @@ class FedRunner(object):
             self.cfg.model, self.data[1], backend=self.cfg.backend
         ) if self.cfg.federate.share_local_model else None
 
-        for client_id in range(1, self.cfg.federate.client_num + 1):
-            self.client[client_id] = self._setup_client(
-                client_id=client_id,
-                client_model=self._shared_client_model,
-                resource_info=client_resource_info[client_id - 1]
-                if client_resource_info is not None else None)
+        # IO-intensive init is slow when we have a large number of clients,
+        # such as object allocation, and data loader init,
+        # set PARALLEL_INIT as true to speed up the init via multi-processing
+        parallel_init = True
+
+        if not parallel_init:
+            for client_id in range(1, self.cfg.federate.client_num + 1):
+                self.client[client_id], _ = self._setup_client(
+                    client_id=client_id,
+                    client_model=self._shared_client_model,
+                    resource_info=client_resource_info[client_id - 1]
+                    if client_resource_info is not None else None)
+        else:
+            from concurrent.futures import ThreadPoolExecutor
+            if self.cfg.backend == "torch":
+                import torch
+                torch.multiprocessing.set_sharing_strategy('file_system')
+            import resource
+            rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
+            assert 1048576 <= rlimit[1]
+            resource.setrlimit(resource.RLIMIT_NOFILE, (1048576, rlimit[1]))
+
+            def callback_for_client_init(ret):
+                client, client_id = ret.result()
+                self.client[client_id] = client
+
+            with ThreadPoolExecutor() as pool:
+                from tqdm import tqdm
+                for client_id in tqdm(
+                        range(1, self.cfg.federate.client_num + 1)):
+                    future = pool.submit(
+                        self._setup_client, client_id,
+                        self._shared_client_model,
+                        client_resource_info[client_id - 1]
+                        if client_resource_info is not None else None)
+                    future.add_done_callback(callback_for_client_init)
 
     def _setup_for_distributed(self):
         """
@@ -399,7 +429,7 @@ class FedRunner(object):
         else:
             logger.info(f'Client {client_id} has been set up ... ')
 
-        return client
+        return client, client_id
 
     def _handle_msg(self, msg, rcv=-1):
         """
