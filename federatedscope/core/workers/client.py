@@ -452,7 +452,6 @@ class Client(Worker):
         """
         sender, timestamp = message.sender, message.timestamp
         self.state = message.state
-        print(f"Round {self.state}, client {self.ID} does evaluation.")
         if message.content is not None:
             self.trainer.update(message.content,
                                 strict=self._cfg.federate.share_local_model)

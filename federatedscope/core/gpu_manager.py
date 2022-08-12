@@ -1,5 +1,7 @@
 import os
 
+import torch
+
 
 def check_gpus():
     if not 'NVIDIA System Management' in os.popen('nvidia-smi -h').read():
@@ -16,9 +18,14 @@ class GPUManager():
     The implementation of GPUManager is referred to
     https://github.com/QuantumLiu/tf_gpu_manager
     """
-    def __init__(self, gpu_available=False, specified_device=-1):
+    def __init__(self,
+                 gpu_available=False,
+                 specified_device=-1,
+                 the_same_device=True):
         self.gpu_avaiable = gpu_available and check_gpus()
         self.specified_device = specified_device
+        # whether only use the same one device for all workers
+        self.the_same_device = the_same_device
         if self.gpu_avaiable:
             self.gpus = self._query_gpus()
             for gpu in self.gpus:
@@ -79,7 +86,13 @@ class GPUManager():
             chosen_gpu = self._sort_by_memory(unallocated_gpus, True)[0]
             chosen_gpu['allocated'] = True
             index = chosen_gpu['index']
-            return 'cuda:{:s}'.format(index)
+            if self.the_same_device:
+                self.specified_device = int(index)
+            # warm up the gpu
+            device = 'cuda:{:s}'.format(index)
+            tmp_tensor = torch.tensor([1, 2], device=device)
+            del tmp_tensor
+            return device
 
 
 # for testing

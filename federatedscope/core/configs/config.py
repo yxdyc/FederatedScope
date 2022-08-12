@@ -126,6 +126,29 @@ class CN(CfgNode):
     def register_cfg_check_fun(self, cfg_check_fun):
         self.cfg_check_funcs.append(cfg_check_fun)
 
+    def parse_dot_cfg(self, cfg_dict):
+        for k, v in copy.deepcopy(cfg_dict).items():
+            if "." in k:
+                logger.info(f"Find nested key {k}")
+                sub_keys = k.split(".")
+                if len(sub_keys) != 2:
+                    raise ValueError(
+                        "Your config should contain keys not more than "
+                        "two-level dots, e.g., a.b.c is not supported now")
+                key1, key2 = k.split(".")
+                try:
+                    # TODO: enable multi dots
+                    cfg_dict[key1][key2] = cfg_dict[k]
+                    cfg_dict.pop(k)
+                    logger.info(f"split config key {k} into two parts")
+                except:
+                    logger.error(f"Error config format for the key {k}")
+            elif isinstance(cfg_dict[k], CfgNode) or isinstance(
+                    cfg_dict[k], CN):
+                # sub-config
+                self.parse_dot_cfg(cfg_dict[k])
+        return cfg_dict
+
     def merge_from_file(self, cfg_filename):
         """
             load configs from a yaml file, another cfg instance or a list
@@ -137,6 +160,7 @@ class CN(CfgNode):
         cfg_check_funcs = copy.copy(self.cfg_check_funcs)
         with open(cfg_filename, "r") as f:
             cfg = self.load_cfg(f)
+        cfg = self.parse_dot_cfg(cfg)
         self.merge_from_other_cfg(cfg)
         self.cfg_check_funcs.clear()
         self.cfg_check_funcs.extend(cfg_check_funcs)
@@ -171,10 +195,24 @@ class CN(CfgNode):
         self.cfg_check_funcs.extend(cfg_check_funcs)
         self.assert_cfg()
 
-    def merge_from_list_yacs(self, cfg_list):
+    def merge_from_list_yacs(self, ori_cfg_list):
         """Merge config (keys, values) in a list (e.g., from command line) into
         this CfgNode. For example, `cfg_list = ['FOO.BAR', 0.5]`.
         """
+        cfg_list = []
+        for item in ori_cfg_list:
+            if not isinstance(item, str):
+                cfg_list.append(item)
+            else:
+                res = item.split("=")
+                assert 1 <= len(res) <= 2, \
+                    "`=` is only allowed to used for specifying cfg_para as " \
+                    "the form: `arg_name=arg_value`. " \
+                    f"But we got invalid arg {item}."
+                if len(res) == 2 and res[1].isdigit():
+                    res[1] = float(res[1])
+                cfg_list.extend(res)
+
         _assert_with_logging(
             len(cfg_list) % 2 == 0,
             "Override list has odd length: {}; it must be a list of pairs".

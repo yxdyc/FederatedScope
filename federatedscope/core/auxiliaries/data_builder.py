@@ -629,7 +629,7 @@ def get_data(config):
         from federatedscope.cv.dataloader import load_cv_dataset
         data, modified_config = load_cv_dataset(config)
     elif config.data.type.lower() in [
-            'shakespeare', 'twitter', 'subreddit', 'synthetic'
+            'shakespeare', 'twitter', 'twitter_glove', 'subreddit', 'synthetic'
     ]:
         from federatedscope.nlp.dataloader import load_nlp_dataset
         data, modified_config = load_nlp_dataset(config)
