@@ -31,10 +31,10 @@ def load_nlp_dataset(config=None):
                            val_frac=splits[1],
                            seed=config.seed,
                            **transforms_funcs)
-    if name == 'twitter':
+    if name in ['twitter', 'twitter_glove']:
         dataset = LEAF_TWITTER(
             root=path,
-            name='twitter',
+            name=name,
             s_frac=config.data.subsample,
             tr_frac=splits[0],
             val_frac=splits[1],

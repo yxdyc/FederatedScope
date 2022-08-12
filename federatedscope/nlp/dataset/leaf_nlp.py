@@ -138,7 +138,7 @@ class LEAF_NLP(LEAF):
             ]
             targets = [letter_to_vec(raw_target) for raw_target in targets]
 
-        elif self.name == 'twitter':
+        elif self.name in ['twitter', 'twitter_glove']:
             # Loading bag of word embeddings
             with open(osp.join(self.raw_dir, 'embs.json'), 'r') as inf:
                 embs = json.load(inf)

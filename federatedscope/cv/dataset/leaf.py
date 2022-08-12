@@ -8,7 +8,8 @@ import os.path as osp
 from torch.utils.data import Dataset
 
 LEAF_NAMES = [
-    'femnist', 'celeba', 'synthetic', 'shakespeare', 'twitter', 'subreddit'
+    'femnist', 'celeba', 'synthetic', 'shakespeare', 'twitter',
+    'twitter_glove', 'subreddit'
 ]
 
 

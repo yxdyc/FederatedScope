@@ -2,6 +2,7 @@ import os
 import random
 import json
 
+import numpy as np
 import torch
 import math
 
@@ -43,6 +44,10 @@ class LEAF_TWITTER(LEAF):
                  target_transform=None,
                  min_size_per_user=0):
         self.root = root
+        self.transform_to_glove = False
+        if name == "twitter_glove":
+            self.transform_to_glove = True
+            name = "twitter"
         self.name = name
         self.s_frac = s_frac
         self.tr_frac = tr_frac
@@ -53,15 +58,37 @@ class LEAF_TWITTER(LEAF):
         if name != 'twitter':
             raise ValueError('`name` should be `twitter`.')
         else:
-            if not os.path.exists(
-                    osp.join(osp.join(root, name, 'raw'), 'embs.json')):
-                self.download()
-                self.extract()
-            print('Loading embs...')
-            with open(osp.join(osp.join(root, name, 'raw'), 'embs.json'),
-                      'r') as inf:
-                embs = json.load(inf)
-            self.id2word = embs['vocab']
+            if not self.transform_to_glove:
+                # use vocab of glove to build the bag of words
+                if not os.path.exists(
+                        osp.join(osp.join(root, name, 'raw'), 'embs.json')):
+                    self.download()
+                    self.extract()
+                print('Loading embs, glove 300d...')
+                with open(osp.join(osp.join(root, name, 'raw'), 'embs.json'),
+                          'r') as inf:
+                    embs = json.load(inf)
+
+                self.embs = embs['emba']
+                self.id2word = embs['vocab']
+            else:
+                # use glove 100d embeddings
+                if not os.path.exists(
+                        osp.join(osp.join(root, name, 'raw'),
+                                 'glove.6B.100d.txt')):
+                    self.download(names=['glove.6B.100d.txt'])
+                self.embs = []
+                self.id2word = []
+                print('Loading embs, glove 100d...')
+                with open(
+                        osp.join(osp.join(root, name, 'raw'),
+                                 'glove.6B.100d.txt'), 'r') as in_f:
+                    for line in in_f:
+                        res = line.split()
+                        self.id2word.append(res[0])
+                        self.embs.append([float(v) for v in res[1:]])
+
+            self.emb_size = len(self.embs[0])
             self.word2id = {v: k for k, v in enumerate(self.id2word)}
         super(LEAF_TWITTER, self).__init__(root, name, transform,
                                            target_transform)
@@ -96,11 +123,13 @@ class LEAF_TWITTER(LEAF):
         names = [f'{self.name}_all_data.zip']
         return names
 
-    def download(self):
+    def download(self, names=None):
         # Download to `self.raw_dir`.
         url = 'https://federatedscope.oss-cn-beijing.aliyuncs.com'
         os.makedirs(self.raw_dir, exist_ok=True)
-        for name in self.raw_file_names:
+        if names is None:
+            names = self.raw_file_names
+        for name in names:
             download_url(f'{url}/{name}', self.raw_dir)
 
     def _to_bag_of_word(self, text):
@@ -111,6 +140,19 @@ class LEAF_TWITTER(LEAF):
             else:
                 break
         text = torch.FloatTensor(bag)
+
+        return text
+
+    def _to_seq_of_emb(self, idx_list, concat=True):
+        text = []
+        for idx in idx_list:
+            if idx == -1:
+                text.append(np.zeros(self.emb_size))
+            else:
+                text.append(np.array(self.embs[idx]))
+        text = torch.FloatTensor(np.array(text))
+        if concat:
+            text = torch.flatten(text)
 
         return text
 
@@ -130,7 +172,11 @@ class LEAF_TWITTER(LEAF):
         for key in data:
             text_dict[key] = []
             texts, targets = data[key]
-            if self.transform:
+            if self.transform_to_glove:
+                text_dict[key] = LocalDataset(texts, targets, None,
+                                              self._to_seq_of_emb,
+                                              self.target_transform)
+            elif self.transform:
                 text_dict[key] = LocalDataset(texts, targets, None,
                                               self.transform,
                                               self.target_transform)
