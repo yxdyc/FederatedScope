@@ -1,3 +1,4 @@
+import copy
 import logging
 
 from collections import deque
@@ -10,6 +11,7 @@ from federatedscope.core.gpu_manager import GPUManager
 from federatedscope.core.auxiliaries.model_builder import get_model
 from federatedscope.core.auxiliaries.data_builder import merge_data
 from federatedscope.core.auxiliaries.utils import get_resource_info
+from concurrent.futures import ThreadPoolExecutor
 
 logger = logging.getLogger(__name__)
 
@@ -87,11 +89,11 @@ class FedRunner(object):
         if self.cfg.federate.method == "global":
             if self.cfg.federate.client_num != 1:
                 if self.cfg.data.server_holds_all:
-                    assert self.data[0] is not None \
-                        and len(self.data[0]) != 0, \
-                        "You specified cfg.data.server_holds_all=True " \
-                        "but data[0] is None. Please check whether you " \
-                        "pre-process the data[0] correctly"
+                    assert self.data[0] is not None and \
+                           len(self.data[0]) != 0, \
+                           "You specified cfg.data.server_holds_all=" \
+                           "True, but data[0] is None. Please check " \
+                           "whether you pre-process the data[0] correctly"
                     self.data[1] = self.data[0]
                 else:
                     logger.info(f"Will merge data from clients whose ids in "
@@ -111,7 +113,7 @@ class FedRunner(object):
                 logger.warning(
                     f"Because the provided the number of resource information "
                     f"{len(self.resource_info)} is less than the number of "
-                    f"participants {self.cfg.federate.client_num+1}, one "
+                    f"participants {self.cfg.federate.client_num + 1}, one "
                     f"candidate might be selected multiple times.")
             else:
                 replace = False
@@ -152,7 +154,6 @@ class FedRunner(object):
                     resource_info=client_resource_info[client_id - 1]
                     if client_resource_info is not None else None)
         else:
-            from concurrent.futures import ThreadPoolExecutor
             if self.cfg.backend == "torch":
                 import torch
                 torch.multiprocessing.set_sharing_strategy('file_system')
@@ -270,6 +271,9 @@ class FedRunner(object):
     def _run_simulation(self):
 
         server_msg_cache = list()
+        msg_cache_eval_all_client = list()
+        parallel_eval = True if self.cfg.federate.client_num > 5000 and not \
+            self.cfg.federate.share_local_model else False
         while True:
             if len(self.shared_comm_queue) > 0:
                 msg = self.shared_comm_queue.popleft()
@@ -278,8 +282,21 @@ class FedRunner(object):
                     # cache for reordering the messages according to
                     # the timestamps
                     heapq.heappush(server_msg_cache, msg)
+                elif parallel_eval and msg.msg_type == "evaluate":
+                    heapq.heappush(msg_cache_eval_all_client, msg)
                 else:
                     self._handle_msg(msg)
+            elif parallel_eval and len(msg_cache_eval_all_client) > 0:
+                with ThreadPoolExecutor() as pool:
+                    from tqdm import tqdm
+                    logger.info(f"[Parallel Mode] Evaluation at round "
+                                f"{msg_cache_eval_all_client[0].state}")
+                    eval_msg = heapq.heappop(msg_cache_eval_all_client)
+                    tmp_msg = copy.copy(eval_msg)
+                    for receiver_id in tqdm(eval_msg.receiver):
+                        tmp_msg.receiver = receiver_id
+                        future = pool.submit(self._handle_msg, tmp_msg,
+                                             receiver_id)
             elif len(server_msg_cache) > 0:
                 msg = heapq.heappop(server_msg_cache)
                 if self.cfg.asyn.use and self.cfg.asyn.aggregator \

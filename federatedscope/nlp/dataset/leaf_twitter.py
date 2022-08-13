@@ -72,17 +72,17 @@ class LEAF_TWITTER(LEAF):
                 self.embs = embs['emba']
                 self.id2word = embs['vocab']
             else:
-                # use glove 100d embeddings
+                # use glove 50d embeddings
                 if not os.path.exists(
                         osp.join(osp.join(root, name, 'raw'),
-                                 'glove.6B.100d.txt')):
-                    self.download(names=['glove.6B.100d.txt'])
+                                 'glove.6B.50d.txt')):
+                    self.download(names=['glove.6B.50d.txt'])
                 self.embs = []
                 self.id2word = []
-                print('Loading embs, glove 100d...')
+                print('Loading embs, glove 50d...')
                 with open(
                         osp.join(osp.join(root, name, 'raw'),
-                                 'glove.6B.100d.txt'), 'r') as in_f:
+                                 'glove.6B.50d.txt'), 'r') as in_f:
                     for line in in_f:
                         res = line.split()
                         self.id2word.append(res[0])
