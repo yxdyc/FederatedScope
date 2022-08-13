@@ -605,7 +605,7 @@ class Monitor(object):
 
         if update_best_this_round:
             line = f"Find new best result: {best_results}"
-            logging.info(line)
+            logger.info(line)
             if self.use_wandb and self.wandb_online_track:
                 try:
                     import wandb
@@ -615,7 +615,6 @@ class Monitor(object):
                         line,
                         self.log_res_best,
                         raw_out=False)
-                    # wandb.log(self.log_res_best)
                     for k, v in self.log_res_best.items():
                         wandb.summary[k] = v
                 except ImportError:

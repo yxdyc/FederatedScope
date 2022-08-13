@@ -74,7 +74,8 @@ class GeneralMultiModelTrainer(GeneralTorchTrainer):
                    "can only copy instances of `GeneralMultiModelTrainer` " \
                    "and its subclasses, or " \
                    "`GeneralTorchTrainer` and its subclasses"
-            self.__dict__ = copy.deepcopy(base_trainer.__dict__)
+            # Note: we should use shallow copy to support trainer post plug-in
+            self.__dict__ = copy.copy(base_trainer.__dict__)
 
         assert models_interact_mode in ["sequential", "parallel"], \
             f"Invalid models_interact_mode, should be `sequential` or " \
