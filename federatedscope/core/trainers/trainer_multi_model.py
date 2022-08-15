@@ -179,6 +179,8 @@ class GeneralMultiModelTrainer(GeneralTorchTrainer):
                 f"Invalid models_interact_mode, should be `sequential` or "
                 f"`parallel`,"
                 f" but got {self.models_interact_mode}")
+        # By default, use the same triggers for training and fine-tuning
+        self.hooks_in_ft = self.hooks_in_train
 
     def register_hook_in_train(self,
                                new_hook,
@@ -231,7 +233,8 @@ class GeneralMultiModelTrainer(GeneralTorchTrainer):
                 "hooks_set should be a list of dict" \
                 "hooks_set[i] stores specific set for i-th internal model." \
                 "For each dict, the key indicates point-in-time and the " \
-                "value indicates specific hook"
+                "value indicates specific hook.\n" \
+                f"But we got {hooks_set}"
             for model_idx in range(len(self.ctx.models)):
                 # switch different hooks & ctx for different internal models
                 hooks_set_model_i = hooks_set[model_idx]
