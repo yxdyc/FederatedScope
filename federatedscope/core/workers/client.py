@@ -305,7 +305,8 @@ class Client(Worker):
                     role='Client #{}'.format(self.ID),
                     return_raw=True)
                 logger.info(train_log_res)
-                if self._cfg.wandb.use and self._cfg.wandb.client_train_info:
+                if self._cfg.wandb.use and self._cfg.wandb.client_train_info \
+                        and self._cfg.federate.client_num < 2000:
                     self._monitor.save_formatted_results(train_log_res,
                                                          save_file_name="")
 
@@ -490,7 +491,9 @@ class Client(Worker):
                     formatted_eval_res['Results_raw'],
                     results_type=f"client #{self.ID}",
                     round_wise_update_key=self._cfg.eval.
-                    best_res_update_round_wise_key)
+                    best_res_update_round_wise_key,
+                    skip_log=True
+                    if self._cfg.federate.client_num > 2000 else False)
                 self.history_results = merge_dict(
                     self.history_results, formatted_eval_res['Results_raw'])
                 self.early_stopper.track_and_check(self.history_results[

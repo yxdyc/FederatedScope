@@ -490,7 +490,8 @@ class Monitor(object):
                            best_results,
                            new_results,
                            results_type,
-                           round_wise_update_key="val_loss"):
+                           round_wise_update_key="val_loss",
+                           skip_log=False):
         """
             update best evaluation results.
             by default, the update is based on validation loss with
@@ -603,7 +604,7 @@ class Monitor(object):
                         # unconcerned metric
                         pass
 
-        if update_best_this_round:
+        if update_best_this_round and not skip_log:
             line = f"Find new best result: {best_results}"
             logger.info(line)
             if self.use_wandb and self.wandb_online_track:
