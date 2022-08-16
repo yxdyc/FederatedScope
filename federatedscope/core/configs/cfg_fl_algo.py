@@ -95,6 +95,18 @@ def extend_fl_algo_cfg(cfg):
     cfg.flitplus.factor_ema = 0.8  # beta in omega (Eq.12)
     cfg.flitplus.weightReg = 1.0  # balance lossLocalLabel and lossLocalVAT
 
+    # ---------------------------------------------------------------------- #
+    # hypcluster
+    # ---------------------------------------------------------------------- #
+    cfg.hypcluster = CN()
+
+    cfg.hypcluster.use = False
+
+    cfg.hypcluster.q = 5
+    cfg.hypcluster.split = 'val'
+    cfg.hypcluster.metric = 'acc'
+
+
     # --------------- register corresponding check function ----------
     cfg.register_cfg_check_fun(assert_fl_algo_cfg)
 

@@ -2,17 +2,17 @@ use_gpu: True
 device: 0
 early_stop:
   patience: 5
-seed: 12345
+seed: 123
 federate:
   mode: standalone
   total_round_num: 300
-  sample_client_rate: 0.2
+  sample_client_rate: 0.05
 data:
   root: data/
   type: femnist
   splits: [0.6,0.2,0.2]
   batch_size: 10
-  subsample: 0.05
+  subsample: 0.001
   num_workers: 0
   transform: [['ToTensor'], ['Normalize', {'mean': [0.1307], 'std': [0.3081]}]]
 model:
@@ -34,3 +34,7 @@ trainer:
 eval:
   freq: 10
   metrics: ['acc', 'correct']
+hypcluster:
+  use: True
+  q: 5
+  split: 'val'
