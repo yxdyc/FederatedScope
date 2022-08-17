@@ -219,7 +219,8 @@ class HypClusterClient(Client):
             cluster_metrics[cluster_id].update(**metrics)
 
         # TODO: support more metrics
-        select_id = min(cluster_metrics.keys(), key=lambda key: cluster_metrics[key]['test_avg_loss'])
+        # during evaluation, select cluster according to the validation loss
+        select_id = min(cluster_metrics.keys(), key=lambda key: cluster_metrics[key]['val_avg_loss'])
         metrics = cluster_metrics[select_id]
 
         self.comm_manager.send(
