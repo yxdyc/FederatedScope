@@ -50,6 +50,17 @@ def extend_fl_algo_cfg(cfg):
     cfg.personalization.beta = 1.0  # the average moving parameter for pFedMe
 
     # ---------------------------------------------------------------------- #
+    # hypcluster, "Three Approaches for Personalization with Applications to
+    # Federated Learning"
+    # ---------------------------------------------------------------------- #
+    cfg.hypcluster = CN()
+
+    cfg.hypcluster.use = False
+
+    cfg.hypcluster.q = 3
+    cfg.hypcluster.split = 'val'
+
+    # ---------------------------------------------------------------------- #
     # FedSage+ related options, gfl
     # ---------------------------------------------------------------------- #
     cfg.fedsageplus = CN()
@@ -95,23 +106,13 @@ def extend_fl_algo_cfg(cfg):
     cfg.flitplus.factor_ema = 0.8  # beta in omega (Eq.12)
     cfg.flitplus.weightReg = 1.0  # balance lossLocalLabel and lossLocalVAT
 
-    # ---------------------------------------------------------------------- #
-    # hypcluster
-    # ---------------------------------------------------------------------- #
-    cfg.hypcluster = CN()
-
-    cfg.hypcluster.use = False
-
-    cfg.hypcluster.q = 5
-    cfg.hypcluster.split = 'val'
-    cfg.hypcluster.metric = 'acc'
-
-
     # --------------- register corresponding check function ----------
     cfg.register_cfg_check_fun(assert_fl_algo_cfg)
 
 
 def assert_fl_algo_cfg(cfg):
+    if cfg.federate.method.lower() == "hypcluster":
+        cfg.hypcluster.use = True
     if cfg.personalization.local_update_steps == -1:
         # By default, use the same step to normal mode
         cfg.personalization.local_update_steps = \

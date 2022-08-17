@@ -15,7 +15,7 @@ def get_client_cls(cfg):
         from federatedscope.vertical_fl.worker import vFLClient
         return vFLClient
 
-    if cfg.hypcluster.use:
+    if cfg.federate.method.lower() == "hypcluster" or cfg.hypcluster.use:
         from federatedscope.pfl.worker import HypClusterClient
         return HypClusterClient
 
@@ -75,7 +75,7 @@ def get_server_cls(cfg):
         from federatedscope.vertical_fl.worker import vFLServer
         return vFLServer
 
-    if cfg.hypcluster.use:
+    if cfg.federate.method.lower() == "hypcluster" or cfg.hypcluster.use:
         from federatedscope.pfl.worker import HypClusterServer
         return HypClusterServer
 
@@ -95,4 +95,3 @@ def get_server_cls(cfg):
         return GCFLPlusServer
     else:
         return Server
-
