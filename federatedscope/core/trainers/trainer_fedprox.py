@@ -20,11 +20,19 @@ def wrap_fedprox_trainer(
                                         trigger='on_fit_start',
                                         insert_pos=-1)
 
+    base_trainer.register_hook_in_ft(new_hook=record_initialization,
+                                     trigger='on_fit_start',
+                                     insert_pos=-1)
+
     base_trainer.register_hook_in_eval(new_hook=record_initialization,
                                        trigger='on_fit_start',
                                        insert_pos=-1)
 
     base_trainer.register_hook_in_train(new_hook=del_initialization,
+                                        trigger='on_fit_end',
+                                        insert_pos=-1)
+
+    base_trainer.register_hook_in_ft(new_hook=del_initialization,
                                         trigger='on_fit_end',
                                         insert_pos=-1)
 
@@ -45,7 +53,7 @@ def init_fedprox_ctx(base_trainer):
     cfg.defrost()
     cfg.regularizer.type = 'proximal_regularizer'
     cfg.regularizer.mu = cfg.fedprox.mu
-    cfg.freeze()
+    cfg.freeze(inform=False, save=False)
 
     from federatedscope.core.auxiliaries.regularizer_builder import \
         get_regularizer
