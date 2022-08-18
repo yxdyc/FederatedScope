@@ -77,20 +77,21 @@ def get_server_cls(cfg):
 
     if cfg.federate.method.lower() == "hypcluster" or cfg.hypcluster.use:
         from federatedscope.pfl.worker import HypClusterServer
+        logger.info("We will use HypClusterServer")
         return HypClusterServer
 
     if cfg.federate.method.lower() in constants.SERVER_TYPE:
-        client_type = constants.SERVER_TYPE[cfg.federate.method.lower()]
+        server_type = constants.SERVER_TYPE[cfg.federate.method.lower()]
     else:
-        client_type = "normal"
+        server_type = "normal"
         logger.warning(
             'Server for method {} is not implemented. Will use default one'.
             format(cfg.federate.method))
 
-    if client_type == 'fedsageplus':
+    if server_type == 'fedsageplus':
         from federatedscope.gfl.fedsageplus.worker import FedSagePlusServer
         return FedSagePlusServer
-    elif client_type == 'gcflplus':
+    elif server_type == 'gcflplus':
         from federatedscope.gfl.gcflplus.worker import GCFLPlusServer
         return GCFLPlusServer
     else:

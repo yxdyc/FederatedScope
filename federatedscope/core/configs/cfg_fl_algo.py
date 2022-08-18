@@ -113,6 +113,8 @@ def extend_fl_algo_cfg(cfg):
 def assert_fl_algo_cfg(cfg):
     if cfg.federate.method.lower() == "hypcluster":
         cfg.hypcluster.use = True
+    elif cfg.federate.method.lower() == "fedprox":
+        cfg.fedprox.use = True
     if cfg.personalization.local_update_steps == -1:
         # By default, use the same step to normal mode
         cfg.personalization.local_update_steps = \
