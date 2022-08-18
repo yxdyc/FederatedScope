@@ -35,7 +35,7 @@ class Sampler(ABC):
             else:
                 raise ValueError(
                     f"The state of client should be one of "
-                    f"['idle', 'working', 'unseen], but got {state}")
+                    f"['idle', 'working', 'seen', 'unseen'], but got {state}")
 
 
 class UniformSampler(Sampler):

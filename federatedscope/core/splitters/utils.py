@@ -1,4 +1,7 @@
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def _split_according_to_prior(label, client_num, prior):
@@ -38,8 +41,9 @@ def _split_according_to_prior(label, client_num, prior):
 def dirichlet_distribution_noniid_slice(label,
                                         client_num,
                                         alpha,
-                                        min_size=1,
-                                        prior=None):
+                                        min_size=10,
+                                        prior=None,
+                                        smooth=True):
     r"""Get sample index list for each client from the Dirichlet distribution.
     https://github.com/FedML-AI/FedML/blob/master/fedml_core/non_iid
     partition/noniid_partition.py
@@ -64,18 +68,35 @@ def dirichlet_distribution_noniid_slice(label,
                                         f'greater than' \
                                         f' {client_num * min_size}.'
     size = 0
+    tried_time = 0
     while size < min_size:
         idx_slice = [[] for _ in range(client_num)]
+        tried_time += 1
+        if tried_time > 50:
+            logger.warning(
+                f"In the dirichlet non.i.i.d. split, we tried {tried_time} "
+                f"times but still do not fulfill the min_size requirement with"
+                f"{min_size}, Please try to increase the min_size or "
+                f"consider other splitter.")
+            if tried_time > 60:
+                logger.warning(
+                    "Too many tried times, we set the min_size to be 1")
+                min_size = 1
+            if tried_time > 70:
+                logger.warning(
+                    "Too many tried times for min_size=1, we stop the trying")
+                break
         for k in range(classes):
             # for label k
             idx_k = np.where(label == k)[0]
             np.random.shuffle(idx_k)
             prop = np.random.dirichlet(np.repeat(alpha, client_num))
-            # prop = np.array([
-            #    p * (len(idx_j) < num / client_num)
-            #    for p, idx_j in zip(prop, idx_slice)
-            # ])
-            # prop = prop / sum(prop)
+            if smooth:
+                prop = np.array([
+                    p * (len(idx_j) < num / client_num)
+                    for p, idx_j in zip(prop, idx_slice)
+                ])
+                prop = prop / sum(prop)
             prop = (np.cumsum(prop) * len(idx_k)).astype(int)[:-1]
             idx_slice = [
                 idx_j + idx.tolist()

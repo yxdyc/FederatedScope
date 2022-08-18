@@ -70,7 +70,10 @@ def get_shape_from_data(data, model_config, backend='torch'):
         import torch
         if issubclass(type(data_representative), torch.utils.data.DataLoader):
             x, _ = next(iter(data_representative))
-            return x.shape
+            if isinstance(x, dict):
+                return list(x.values())[0].shape
+            else:
+                return x.shape
         else:
             try:
                 x, _ = data_representative

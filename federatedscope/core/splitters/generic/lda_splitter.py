@@ -4,9 +4,11 @@ from federatedscope.core.splitters.utils import \
 
 
 class LDASplitter(object):
-    def __init__(self, client_num, alpha=0.5):
+    def __init__(self, client_num, alpha=0.5, min_size=10, smooth=True):
         self.client_num = client_num
         self.alpha = alpha
+        self.min_size = min_size
+        self.smooth = smooth
 
     def __call__(self, dataset, prior=None):
         dataset = [ds for ds in dataset]
@@ -14,7 +16,9 @@ class LDASplitter(object):
         idx_slice = dirichlet_distribution_noniid_slice(label,
                                                         self.client_num,
                                                         self.alpha,
-                                                        prior=prior)
+                                                        prior=prior,
+                                                        min_size=self.min_size,
+                                                        smooth=self.smooth)
         data_list = [[dataset[idx] for idx in idxs] for idxs in idx_slice]
         return data_list
 
