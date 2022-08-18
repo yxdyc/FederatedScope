@@ -34,7 +34,3 @@ trainer:
 eval:
   freq: 10
   metrics: ['acc', 'correct']
-hypcluster:
-  use: True
-  q: 5
-  split: 'val'

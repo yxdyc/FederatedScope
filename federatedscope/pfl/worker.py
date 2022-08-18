@@ -125,13 +125,12 @@ class HypClusterServer(Server):
                             timestamp=self.cur_timestamp,
                             content=self.cluster_models[cluster_id]))
 
-            # self.broadcast_model_para(msg_type='model_para',
-            #                           receiver=self.receiver)
             return True
         else:
             return False
 
     def _cluster_clients(self):
+        self.sampler.change_state(self.unseen_clients_id, 'unseen')
         receiver = self.sampler.sample(size=self.sample_client_num)
         # Send and evaluate all cluster models to clients
         self.comm_manager.send(
