@@ -32,15 +32,19 @@ class NLPTrainer(GeneralTorchTrainer):
                 f"Plz check whether this is you want.")
             return
 
-        if self.ctx.monitor.flops_per_sample == 0:
+        if self.cfg.eval.count_flops and self.ctx.monitor.flops_per_sample \
+                == 0:
             # calculate the flops_per_sample
             try:
                 x, label = [
                     utils.move_to(_, ctx.device) for _ in ctx.data_batch
                 ]
                 from fvcore.nn import FlopCountAnalysis
-                flops_one_batch = FlopCountAnalysis(ctx.model,
-                                                    tuple(x.values())).total()
+                if isinstance(x, dict):
+                    flops_one_batch = FlopCountAnalysis(
+                        ctx.model, tuple(x.values())).total()
+                else:
+                    flops_one_batch = FlopCountAnalysis(ctx.model, x).total()
 
                 if self.model_nums > 1 and ctx.mirrored_models:
                     flops_one_batch *= self.model_nums
@@ -59,6 +63,8 @@ class NLPTrainer(GeneralTorchTrainer):
                     "tuple(x.values()) (for dict) as input."
                     "Please check the forward format or implement "
                     "your own flop_count function")
+                self.ctx.monitor.flops_per_sample = -1  # warning at the
+                # first failure
 
         # by default, we assume the data has the same input shape,
         # thus simply multiply the flops to avoid redundant forward

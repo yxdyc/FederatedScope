@@ -1,4 +1,5 @@
 import copy
+import functools
 import logging
 import os
 
@@ -104,6 +105,18 @@ def merge_dict_a_into_b(a, b, root, key_list):
                 raise KeyError("Non-existent config key: {}".format(full_key))
 
 
+def rsetattr(obj, attr, val):
+    pre, _, post = attr.rpartition('.')
+    return setattr(rgetattr(obj, pre) if pre else obj, post, val)
+
+
+def rgetattr(obj, attr, *args):
+    def _getattr(obj, attr):
+        return getattr(obj, attr, *args)
+
+    return functools.reduce(_getattr, [obj] + attr.split('.'))
+
+
 class CN(CfgNode):
     """
         An extended configuration system based on [yacs](
@@ -130,17 +143,9 @@ class CN(CfgNode):
         for k, v in copy.deepcopy(cfg_dict).items():
             if "." in k:
                 logger.info(f"Find nested key {k}")
-                sub_keys = k.split(".")
-                if len(sub_keys) != 2:
-                    raise ValueError(
-                        "Your config should contain keys not more than "
-                        "two-level dots, e.g., a.b.c is not supported now")
-                key1, key2 = k.split(".")
                 try:
-                    # TODO: enable multi dots
-                    cfg_dict[key1][key2] = cfg_dict[k]
+                    rsetattr(cfg_dict, k, v)
                     cfg_dict.pop(k)
-                    logger.info(f"split config key {k} into two parts")
                 except:
                     logger.error(f"Error config format for the key {k}")
             elif isinstance(cfg_dict[k], CfgNode) or isinstance(
