@@ -108,7 +108,11 @@ class HypClusterServer(Server):
                 self._merge_and_format_eval_results()
 
     def cluster_and_move_on(self):
-        cluster_results = self.msg_buffer['cluster'][self.state]
+        if self.state > self.total_round_num:
+            # finished
+            return True
+        else:
+            cluster_results = self.msg_buffer['cluster'][self.state]
         if sum([len(_)
                 for _ in cluster_results.values()]) >= self.sample_client_num:
             # receive all cluster infos
