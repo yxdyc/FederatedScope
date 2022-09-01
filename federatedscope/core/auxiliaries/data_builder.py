@@ -696,6 +696,8 @@ def get_data(config):
 
 def do_data_statistics(config, data):
     data_num_all_client = defaultdict(list)
+    label_dist_all_client = dict()  # {client: client_dist}
+
     logger.info(
         f"For data={config.data.type} with subsample={config.data.subsample},"
         f" the client_num is {len(data)}")
@@ -703,6 +705,9 @@ def do_data_statistics(config, data):
         if client_id == 0:
             # skip the data holds on server
             continue
+        if config.data.probe_label_dist:
+            label_dist_all_client[client_id] = \
+                [0 for _ in range(config.model.out_channels)]
         if isinstance(ds_ci, dict):
             for split_name, ds in ds_ci.items():
                 try:
@@ -712,12 +717,15 @@ def do_data_statistics(config, data):
                             ds, (torch.utils.data.Dataset, list)) or \
                             issubclass(type(ds), torch.utils.data.Dataset):
                         data_num_all_client[split_name].append(len(ds))
+                        if config.data.probe_label_dist:
+                            for i in range(len(ds)):
+                                label = ds[i]
+                                label_dist_all_client[client_id][label] += 1
                     elif isinstance(
                             ds, (torch.utils.data.DataLoader, list)) or \
                             issubclass(type(ds), torch.utils.data.DataLoader):
                         data_num_all_client[split_name].append(len(ds.dataset))
-                        if config.data.labelwise_boxplot and \
-                                "cifar" in config.data.type.lower():
+                        if config.data.labelwise_boxplot:
                             from collections import Counter
                             all_labels = [
                                 ds.dataset[i][1]
@@ -726,7 +734,10 @@ def do_data_statistics(config, data):
                             label_wise_cnt = Counter(all_labels)
                             for label, cnt in label_wise_cnt.items():
                                 data_num_all_client[label].append(cnt)
-
+                        if config.data.probe_label_dist:
+                            for i in range(len(ds)):
+                                label = ds.dataset[i][1]
+                                label_dist_all_client[client_id][label] += 1
                     elif issubclass(type(ds), MFDataLoader):
                         data_num_all_client[split_name].append(ds.n_rating)
                 except:
@@ -743,6 +754,12 @@ def do_data_statistics(config, data):
                         num_nodes)
     if config.data.plot_boxplot:
         plot_data_statistics(config, data_num_all_client)
+    if config.data.probe_label_dist:
+        prob_label_dist(config, label_dist_all_client)
+        import random
+        unseen_clients_ids = random.choices(list(range(1, 50)), k=10)
+        prob_label_dist(config, label_dist_all_client, unseen_clients_ids)
+
     from scipy import stats
     all_split_merged_num = []
     for k, v in data_num_all_client.items():
@@ -771,6 +788,55 @@ def do_data_statistics(config, data):
                 f"std is {math.sqrt(stats_res.variance)}")
 
 
+def prob_label_dist(config, label_dist_all_client, should_contain_ids=None):
+    pairwise_distance = dict()
+    from scipy.spatial.distance import jensenshannon
+    from scipy import stats
+    # normalize
+    for k, v in label_dist_all_client.items():
+        total = sum(v)
+        if total != 1:
+            label_dist_all_client[k] = [x / total for x in v]
+    # calculate the client-wise J-S distance
+    for i in range(1, len(list(label_dist_all_client.keys()))):
+        for j in range(1, i):
+            if should_contain_ids is not None and \
+                    (i not in should_contain_ids or
+                     j not in should_contain_ids):
+                continue
+            pairwise_distance[(i, j)] = jensenshannon(label_dist_all_client[i],
+                                                      label_dist_all_client[j])
+    stats_res = stats.describe(list(pairwise_distance.values()))
+    logger.info(
+        f"The distribution for pari-wise JS-distance over all client is "
+        f"{stats_res}")
+
+    import matplotlib.pyplot as plt
+    import matplotlib.pylab as pylab
+    plt.clf()
+    label_size = 18.5
+    ticks_size = 17
+    title_size = 22.5
+    legend_size = 17
+    params = {
+        'legend.fontsize': legend_size,
+        'axes.labelsize': label_size,
+        'axes.titlesize': title_size,
+        'xtick.labelsize': ticks_size,
+        'ytick.labelsize': ticks_size
+    }
+    pylab.rcParams.update(params)
+    ax = plt.subplot()
+    plt.hist(list(pairwise_distance.values()))
+    ax.set_xlabel("Client-wise JS distance")
+    ax.set_ylabel("Count")
+    ax.set_xlim(0, 1)
+    # ax.set_ylim(0, 1500)
+    fig_name = f"{config.outdir}/visual_{config.data.type}_js_distance.pdf"
+    plt.savefig(fig_name, bbox_inches='tight', pad_inches=0)
+    plt.show()
+
+
 def plot_data_statistics(config, data_num_all_client):
     index = []
     data_num_list = []
@@ -779,7 +845,7 @@ def plot_data_statistics(config, data_num_all_client):
             continue
         index.append(key)
         data_num_list.append(val)
-    if index[1] == "test" and index[2] == "val":
+    if len(index) > 3 and index[1] == "test" and index[2] == "val":
         index[1], index[2] = index[2], index[1]
         data_num_list[1], data_num_list[2] = data_num_list[2], data_num_list[1]
     import matplotlib.pyplot as plt
@@ -800,6 +866,10 @@ def plot_data_statistics(config, data_num_all_client):
         index_order = np.argsort(np.array(index))
         index = [index[i] for i in index_order]
         data_num_list = [data_num_list[i] for i in index_order]
+        from scipy import stats
+        for i in index_order:
+            stats_res = stats.describe(data_num_list[i])
+            logger.info(f"The distribution label {index[i]} is {stats_res}")
     pylab.rcParams.update(params)
     ax = plt.subplot()
     ax.violinplot(data_num_list)

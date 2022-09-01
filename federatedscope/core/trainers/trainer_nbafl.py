@@ -57,7 +57,7 @@ def init_nbafl_ctx(base_trainer):
     cfg.defrost()
     cfg.regularizer.type = 'proximal_regularizer'
     cfg.regularizer.mu = cfg.nbafl.mu
-    cfg.freeze()
+    cfg.freeze(inform=False, save=False)
     from federatedscope.core.auxiliaries.regularizer_builder import \
         get_regularizer
     ctx.regularizer = get_regularizer(cfg.regularizer.type)

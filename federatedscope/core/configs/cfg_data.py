@@ -43,6 +43,7 @@ def extend_data_cfg(cfg):
 
     cfg.data.plot_boxplot = False
     cfg.data.labelwise_boxplot = False
+    cfg.data.probe_label_dist = False
 
     # quadratic
     cfg.data.quadratic = CN()
