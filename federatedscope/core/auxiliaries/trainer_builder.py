@@ -124,6 +124,9 @@ def get_trainer(model=None,
         from federatedscope.core.trainers import wrap_DittoTrainer
         # wrap style: instance a (class A) -> instance a (class A)
         trainer = wrap_DittoTrainer(trainer)
+    elif config.federate.method.lower() == "fedrep":
+        from federatedscope.core.trainers import wrap_FedRepTrainer
+        trainer = wrap_FedRepTrainer(trainer)
     elif config.federate.method.lower() == "fedem":
         from federatedscope.core.trainers import FedEMTrainer
         # copy construct style: instance a (class A) -> instance b (class B)

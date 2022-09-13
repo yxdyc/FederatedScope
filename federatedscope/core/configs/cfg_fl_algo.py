@@ -49,6 +49,17 @@ def extend_fl_algo_cfg(cfg):
     cfg.personalization.K = 5  # the local approximation steps for pFedMe
     cfg.personalization.beta = 1.0  # the average moving parameter for pFedMe
 
+    # for fedrep, we need to specify the local model parameters names via
+    # cfg such as "personalization.local_param='linear' ".
+    # We also need to specify training steps and lrs for (personalized) local
+    # linear layers and (shared) feature extraction layers
+    cfg.fedrep = CN()
+    cfg.fedrep.use = False
+    cfg.fedrep.epoch_feature = 1
+    cfg.fedrep.epoch_linear = 1
+    cfg.fedrep.lr_feature = 0.1
+    cfg.fedrep.lr_linear = 0.1
+
     # ---------------------------------------------------------------------- #
     # hypcluster, "Three Approaches for Personalization with Applications to
     # Federated Learning"
@@ -115,6 +126,8 @@ def assert_fl_algo_cfg(cfg):
         cfg.hypcluster.use = True
     elif cfg.federate.method.lower() == "fedprox":
         cfg.fedprox.use = True
+    elif cfg.federate.method.lower() == "fedrep":
+        cfg.fedrep.use = True
     if cfg.personalization.local_update_steps == -1:
         # By default, use the same step to normal mode
         cfg.personalization.local_update_steps = \

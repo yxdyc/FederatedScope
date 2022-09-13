@@ -32,6 +32,7 @@ class Trainer(object):
         "on_fit_start", "on_epoch_start", "on_batch_start", "on_batch_forward",
         "on_batch_backward", "on_batch_end", "on_epoch_end", "on_fit_end"
     ]
+    LOG_META_INFO_TIME = 0  # for terse log
 
     def __init__(self,
                  model,
