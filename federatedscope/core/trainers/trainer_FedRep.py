@@ -22,7 +22,7 @@ def wrap_FedRepTrainer(
 
     base_trainer.register_hook_in_train(new_hook=hook_on_fit_start_fedrep,
                                         trigger="on_fit_start",
-                                        insert_pos=0)
+                                        insert_pos=-1)
 
     base_trainer.register_hook_in_train(new_hook=hook_on_epoch_start_fedrep,
                                         trigger="on_epoch_start",
