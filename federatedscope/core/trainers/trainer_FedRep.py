@@ -49,17 +49,21 @@ def init_FedRep_ctx(base_trainer):
     ctx.global_update_param = []
 
     all_para_names = list(ctx.model.state_dict().keys())
-    ctx.head_paras = all_para_names[-2:]  # e.g., linear.weight, linear.bias
+    head_paras = all_para_names[-2:]  # e.g., linear.weight, linear.bias
     if type(base_trainer).LOG_META_INFO_TIME == 0:
-        logger.info("For FedRep Trainer, we will keep the following paras as "
-                    f"local para:\n head_paras={ctx.head_paras}\n"
-                    f" personalization.local_param="
+        logger.info("For FedRep Trainer, we will merge the local head paras "
+                    "into local personalization.local_param. Before merging,"
+                    f"the last head para:\n head_paras={head_paras}\n"
+                    f"the personalization.local_param="
                     f"{cfg.personalization.local_param}")
         type(base_trainer).LOG_META_INFO_TIME = 1
 
+    for name in head_paras:
+        if name not in cfg.personalization.local_param:
+            cfg.personalization.local_param.append(name)
+
     for name, param in ctx.model.named_parameters():
-        if name in ctx.head_paras or \
-                name in ctx.cfg.personalization.local_param:
+        if name in ctx.cfg.personalization.local_param:
             ctx.local_update_param.append(param)
         else:
             ctx.global_update_param.append(param)
@@ -78,8 +82,7 @@ def hook_on_fit_start_fedrep(ctx):
     #  only the linear classifier can be updated.
 
     for name, param in ctx.model.named_parameters():
-        if name in ctx.head_paras or \
-                name in ctx.cfg.personalization.local_param:
+        if name in ctx.cfg.personalization.local_param:
             param.requires_grad = True
         else:
             param.requires_grad = False
@@ -93,8 +96,7 @@ def hook_on_epoch_start_fedrep(ctx):
     if ctx.cur_epoch_number == ctx.epoch_linear + 1:
 
         for name, param in ctx.model.named_parameters():
-            if name in ctx.head_paras or \
-                    name in ctx.cfg.personalization.local_param:
+            if name in ctx.cfg.personalization.local_param:
                 param.requires_grad = False
             else:
                 param.requires_grad = True
