@@ -1,0 +1,38 @@
+
+program: federatedscope/main.py
+project: attack-bench
+name: ditto,CIFAR10-iid,resnet18
+method: grid
+#method: bayes
+metric:
+  goal: maximize
+  name: best_client_summarized_weighted_avg/val_acc
+command:
+  - ${env}
+  - ${interpreter}
+  - ${program}
+  - "--cfg"
+  - "scripts/personalization_exp_scripts/attack_bench/CIFAR-10-iid/fedavg_resnet18_on_cifar10.yaml"
+  - "outdir"
+  - "exp_pfl_bench"
+  - "wandb.use"
+  - "True"
+  - "wandb.name_project"
+  - "attack-bench"
+  - "wandb.name_user"
+  - "daoyuan"
+  - "federate.method"
+  - "Ditto"
+  - ${args_no_hyphens}
+parameters:
+  train.optimizer.lr:
+    values: [0.05, 0.005, 0.5, 0.01, 0.1]
+  train.local_update_steps:
+    values: [1, 2, 3]
+  personalization.regular_weight:
+    values: [0.05, 0.1, 0.5, 0.8]
+
+early_terminate:
+  type: hyperband
+  min_iter: 5  # the first bucket indicates we called wandb at least 5 times
+

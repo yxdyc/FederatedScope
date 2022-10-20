@@ -1,0 +1,41 @@
+use_gpu: True
+device: -1
+early_stop:
+  patience: 10
+seed: 2333
+federate:
+  mode: standalone
+  total_round_num: 1000
+  sample_client_rate: 0.1
+  client_num: 100
+data:
+  root: data/
+  type: 'CIFAR10@torchvision'
+  splits: [0.9, 0.1, 0.0]
+  batch_size: 32
+  num_workers: 0
+  transform: [['ToTensor'], ['Normalize', {'mean': [0.4914, 0.4822, 0.4465], 'std': [0.2023, 0.1994, 0.2010]}]]
+  args: [{'download': True}]
+  splitter: 'lda'
+  splitter_args: [{'alpha': 0.5, 'min_size': 1, 'smooth': False}]
+  consistent_label_distribution: True
+model:
+  type: resnet18
+  hidden: 512
+  out_channels: 10
+  dropout: 0.0
+grad:
+  grad_clip: 5.0
+train:
+  local_update_steps: 2
+  batch_or_epoch: epoch
+  optimizer:
+    lr: 0.1
+    weight_decay: 0.0
+criterion:
+  type: CrossEntropyLoss
+trainer:
+  type: cvtrainer
+eval:
+  freq: 10
+  metrics: ['acc', 'correct']
