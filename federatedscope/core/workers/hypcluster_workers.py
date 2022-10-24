@@ -164,7 +164,7 @@ class HypClusterServer(Server):
             msg_list = [msg_buffer[_] for _ in clients_id]
             agg_info = {'client_feedback': msg_list}
             model_param = self.cluster_models[cluster_id]
-            # TODO: check bug for un-seen clients
+            # TODO: check the case for un-seen clients
             result = self.aggregator.aggregate(agg_info)
             merged_param = merge_param_dict(model_param.copy(), result)
             self.cluster_models[cluster_id] = merged_param
