@@ -72,6 +72,19 @@ def extend_fl_algo_cfg(cfg):
     cfg.hypcluster.split = 'val'
 
     # ---------------------------------------------------------------------- #
+    # FedMD, "FedMD: Heterogenous Federated Learning via Model Distillation"
+    # ---------------------------------------------------------------------- #
+    cfg.fedmd = CN()
+
+    cfg.fedmd.use = False
+
+    cfg.fedmd.epoch_pretrain_public = 10
+    cfg.fedmd.lr_public = 0.1  # pre-train lr
+    cfg.fedmd.epoch_pretrain_private = 10
+    cfg.fedmd.epoch_digest_public = 1
+    cfg.fedmd.public_out_channels = 100  # for CIFAR-100
+
+    # ---------------------------------------------------------------------- #
     # FedSage+ related options, gfl
     # ---------------------------------------------------------------------- #
     cfg.fedsageplus = CN()
